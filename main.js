@@ -10,7 +10,7 @@ function probabilityOfWin (rankingA, rankingB, maxRanking) {
 
 function generateGamePoints(){
     const winningTeamPoints = Math.round(Math.random() * (100 - 50) + 50);
-    const losingTeamPoints = Math.round(Math.random() * (winningTeamPoints - 1 - 10) + 10);
+    const losingTeamPoints = Math.round(Math.random() * (winningTeamPoints - 1 - (winningTeamPoints - 30)) + (winningTeamPoints - 30));
 
     return { winningTeamPoints, losingTeamPoints };
 }
@@ -18,6 +18,7 @@ function generateGamePoints(){
 function gameSimulation (firstTeam, secondTeam) { //ko je pobedio, ko je ucestvovao, ko je koliko dao poena
     const result = {
         winTeam: null,
+        loseTeam: null,
         firstTeam: firstTeam,
         secondTeam: secondTeam,
         firstTeamPoints: 0,
@@ -32,10 +33,12 @@ function gameSimulation (firstTeam, secondTeam) { //ko je pobedio, ko je ucestvo
 
     if(probabilityA >= randomNumberProbability){//teamA je pobedio
         result.winTeam = firstTeam;
+        result.loseTeam = secondTeam;
         result.firstTeamPoints = gamePoints.winningTeamPoints;
         result.secondTeamPoints = gamePoints.losingTeamPoints;
     }else{
         result.winTeam = secondTeam;
+        result.loseTeam = firstTeam;
         result.secondTeamPoints = gamePoints.winningTeamPoints;
         result.firstTeamPoints = gamePoints.losingTeamPoints;
     }
@@ -98,8 +101,8 @@ function groupSimulation(group, groupName){
     console.log(`Grupa ${groupName}:`)
     for(let i = 0; i < games.length / 2; i++){
         console.log(`   Grupna faza - ${i + 1} kolo:`);
-        console.log(`       ${games[i].firstTeam.Team} - ${games[i].secondTeam.Team} (${games[i].firstTeamPoints} - ${games[i].secondTeamPoints})`);
-        console.log(`       ${games[games.length - (i + 1)].firstTeam.Team} - ${games[games.length - (i + 1)].secondTeam.Team} (${games[games.length - (i + 1)].firstTeamPoints} - ${games[games.length - (i + 1)].secondTeamPoints})`);
+        console.log(`       ${games[i].firstTeam.Team} - ${games[i].secondTeam.Team} (${games[i].firstTeamPoints} : ${games[i].secondTeamPoints})`);
+        console.log(`       ${games[games.length - (i + 1)].firstTeam.Team} - ${games[games.length - (i + 1)].secondTeam.Team} (${games[games.length - (i + 1)].firstTeamPoints} : ${games[games.length - (i + 1)].secondTeamPoints})`);
     }
 
     table.sort(function(rowX, rowY){
@@ -126,7 +129,156 @@ function groupSimulation(group, groupName){
         return 0;
     });
 
-    return table;
+    return  { table, games };
 }
 
-console.log(groupSimulation(groups.A, 'A'));
+function printTable(table, groupName){
+    console.log(`\n     Grupa ${groupName} (Ime - pobede/porazi/bodovi/postignuti koševi/primljeni koševi/koš razlika)`);
+    for(let i = 0; i < table.length; i++){
+        console.log(`       ${i + 1}. ${table[i].team.Team}     ${table[i].won} / ${table[i].lost} / ${table[i].score} / ${table[i].givenPoints} / ${table[i].takenPoints} / ${table[i].diffPoints()}`)
+    }
+}
+
+function sortPlacedTeams(teamX, teamY){
+    if(teamX.score > teamY.score){
+        return -1;
+    }
+
+    if(teamX.score < teamY.score){
+        return 1;
+    }
+
+    if(teamX.diffPoints() > teamY.diffPoints()){
+        return -1;
+    }
+
+    if(teamX.diffPoints() < teamY.diffPoints()){
+        return 1;
+    }
+
+    if(teamX.givenPoints > teamY.givenPoints){
+        return -1;
+    }
+
+    if(teamX.givenPoints < teamY.givenPoints){
+        return 1;
+    }
+
+    return 0;
+}
+
+function hatDraw(hatX, hatY, allGames){
+    let gameBetweenXY = [];
+    let gameBetweenZW = [];
+    let quarterFinal = [];
+    let teamHatX;
+    let teamHatY;
+    let teamHatZ;
+    let teamHatW;
+
+    do{
+        teamHatX = hatX[Math.floor(Math.random()*hatX.length)];
+        teamHatY = hatY[Math.floor(Math.random()*hatY.length)];
+
+        if(hatX[0] == teamHatX){
+            teamHatZ = hatX[1];
+        }else{
+            teamHatZ = hatX[0];
+        }
+    
+        if(hatY[0] == teamHatY){
+            teamHatW = hatY[1];
+        }else{
+            teamHatW = hatY[0];
+        }
+        
+        const allGamesOfTeamHatX = allGames.filter(game => game.firstTeam == teamHatX || game.secondTeam == teamHatX);
+
+        gameBetweenXY = allGamesOfTeamHatX.filter(game => game.firstTeam == teamHatY || game.secondTeam == teamHatY);
+
+        const allGamesOfTeamHatZ = allGames.filter(game => game.firstTeam == teamHatZ || game.secondTeam == teamHatZ);
+
+        gameBetweenZW = allGamesOfTeamHatZ.filter(game => game.firstTeam == teamHatW || game.secondTeam == teamHatW);
+
+    }while(gameBetweenXY.length > 0 || gameBetweenZW.length > 0);
+
+    quarterFinal.push(teamHatX, teamHatY, teamHatZ, teamHatW);
+
+    return quarterFinal;
+}
+
+function printHat(hat, hatName){
+    console.log(`   Sesir ${hatName}`)
+    console.log(`       ${hat[0].Team}`)
+    console.log(`       ${hat[1].Team}`)
+}
+
+function tournamentSimulation(groups){
+    const tableGroupA = groupSimulation(groups.A, 'A');
+    const tableGroupB = groupSimulation(groups.B, 'B');
+    const tableGroupC = groupSimulation(groups.C, 'C');
+
+    const allGames = [...tableGroupA.games, ...tableGroupB.games, ...tableGroupC.games];
+
+    console.log("\nKonacan plasman u grupama:");
+    printTable(tableGroupA.table, 'A');
+    printTable(tableGroupB.table, 'B');
+    printTable(tableGroupC.table, 'C');
+
+    const firstPlaced = [tableGroupA.table[0], tableGroupB.table[0], tableGroupC.table[0]];
+    const secondPlaced = [tableGroupA.table[1], tableGroupB.table[1], tableGroupC.table[1]];
+    const thirdPlaced = [tableGroupA.table[2], tableGroupB.table[2], tableGroupC.table[2]];
+
+    firstPlaced.sort(sortPlacedTeams);
+    secondPlaced.sort(sortPlacedTeams);
+    thirdPlaced.sort(sortPlacedTeams);
+
+    const hatD = [firstPlaced[0].team, firstPlaced[1].team];
+    const hatE = [firstPlaced[2].team, secondPlaced[0].team];
+    const hatF = [secondPlaced[1].team, secondPlaced[2].team];
+    const hatG = [thirdPlaced[0].team, thirdPlaced[1].team];
+
+    console.log("Sesiri: ");
+    printHat(hatD, 'D');
+    printHat(hatE, 'E');
+    printHat(hatF, 'F');
+    printHat(hatG, 'G');
+
+    const quarterFinalTeams = [...hatDraw(hatD, hatG, allGames), ...hatDraw(hatE, hatF, allGames)]; // [D, G, D, G, E, F, E, F]
+
+    const semiFinalTeams = []; // [D, D, F, E]
+
+    console.log("\nEliminaciona faza:")
+    for(let i = 0; i < quarterFinalTeams.length; i += 2){
+        console.log(`   ${quarterFinalTeams[i].Team} - ${quarterFinalTeams[i + 1].Team}`);
+    }
+
+    console.log("\nCetvrtfinale:")
+    for(let i = 0; i < quarterFinalTeams.length; i += 2){
+        const quarterGame = gameSimulation(quarterFinalTeams[i], quarterFinalTeams[i + 1]);
+        semiFinalTeams.push(quarterGame.winTeam);
+
+        console.log(`   ${quarterGame.firstTeam.Team} - ${quarterGame.secondTeam.Team} (${quarterGame.firstTeamPoints} : ${quarterGame.secondTeamPoints})`);
+    }
+
+    const semiFinalGameX = gameSimulation(semiFinalTeams[0], semiFinalTeams[2]);
+    const semiFinalGameY = gameSimulation(semiFinalTeams[1], semiFinalTeams[3]);
+    console.log("\nPolufinale:");
+    console.log(`   ${semiFinalGameX.firstTeam.Team} - ${semiFinalGameX.secondTeam.Team} (${semiFinalGameX.firstTeamPoints} : ${semiFinalGameX.secondTeamPoints})`);
+    console.log(`   ${semiFinalGameY.firstTeam.Team} - ${semiFinalGameY.secondTeam.Team} (${semiFinalGameY.firstTeamPoints} : ${semiFinalGameY.secondTeamPoints})`);
+
+    const thirdPlaceGame = gameSimulation(semiFinalGameX.loseTeam, semiFinalGameY.loseTeam);
+    console.log("\nUtakmica za trece mesto:");
+    console.log(`   ${thirdPlaceGame.firstTeam.Team} - ${thirdPlaceGame.secondTeam.Team} (${thirdPlaceGame.firstTeamPoints} : ${thirdPlaceGame.secondTeamPoints})`);
+
+    const finalGame = gameSimulation(semiFinalGameX.winTeam, semiFinalGameY.winTeam);
+    console.log("\nFinale:");
+    console.log(`   ${finalGame.firstTeam.Team} - ${finalGame.secondTeam.Team} (${finalGame.firstTeamPoints} : ${finalGame.secondTeamPoints})`);
+
+    console.log("\nMedalje:");
+    console.log(`   1. ${finalGame.winTeam.Team}`);
+    console.log(`   2. ${finalGame.loseTeam.Team}`);
+    console.log(`   3. ${thirdPlaceGame.winTeam.Team}`);
+}
+
+tournamentSimulation(groups);
